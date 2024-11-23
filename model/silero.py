@@ -80,15 +80,15 @@ class SileroVAD(nn.Module):
         self._last_sr = 0
         self._last_batch_size = 0
 
-    def forward(self, x, sr):
+    def forward(self, data, sr):
 
         num_samples = 512 if sr == 16000 else 256
 
-        if x.shape[-1] != num_samples:
+        if data.shape[-1] != num_samples:
             raise ValueError(
-                f"Provided number of samples is {x.shape[-1]} (Supported values: 256 for 8000 sample rate, 512 for 16000)")
+                f"Provided number of samples is {data.shape[-1]} (Supported values: 256 for 8000 sample rate, 512 for 16000)")
 
-        batch_size = x.shape[0]
+        batch_size = data.shape[0]
         context_size = 64 if sr == 16000 else 32
 
         if not self._last_batch_size:
@@ -101,13 +101,14 @@ class SileroVAD(nn.Module):
         if not len(self._context):
             self._context = torch.zeros(batch_size, context_size)
 
-        x = torch.cat([self._context, x], dim=1)
+        x = torch.cat([self._context, data], dim=1)
 
         x = self.stft(x)
         x = self.encoder(x)
         x, self._state = self.decoder(x, self._state)
 
-        self._context = x[..., -context_size:]
+
+        self._context = data[..., -context_size:]
         self._last_sr = sr
         self._last_batch_size = batch_size
 
@@ -135,12 +136,14 @@ if __name__ == '__main__':
     model = SileroVADModel()
     model.eval()
     model.load_state_dict(state_dict, strict=False)
-    input_tensor = torch.randn(1, 512)  # Sample input (batch_size=10, feature_dim=256)
+
 
     model.reset_states()
 
-    # Perform forward pass
-    output = model(input_tensor)
-    jit_output = jit_model(input_tensor, 16000)
+    for i in range(10):
+        # Perform forward pass
+        input_tensor = torch.randn(1, 512)  # Sample input (batch_size=10, feature_dim=256)
+        output = model(input_tensor)
+        jit_output = jit_model(input_tensor, 16000)
 
-    print(torch.allclose(output, jit_output))
+        print(torch.allclose(output, jit_output))
