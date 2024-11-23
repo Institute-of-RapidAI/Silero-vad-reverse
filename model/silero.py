@@ -120,8 +120,8 @@ class SileroVADModel(nn.Module):
         super(SileroVADModel, self).__init__()
         self._model = SileroVAD()
 
-    def forward(self, x):
-        x = self._model(x, 16000)
+    def forward(self, x, sample_rate=16000):
+        x = self._model(x, sample_rate)
         return x.squeeze(-1).mean()
 
     def reset_states(self, batch_size=1):
